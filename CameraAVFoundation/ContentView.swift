@@ -23,13 +23,9 @@ struct ContentView: View {
         Text("No Image Captured").foregroundColor(.gray)
       }
       
-      Button {
+      CtaButton(text: "Open Camera", systemImage: "camera.circle") {
         openCamera.toggle()
-      } label: {
-        Label("Open Camera", systemImage: "camera.circle")
       }
-      .tint(.mint)
-      .buttonStyle(.borderedProminent)
     }
     .padding()
     .fullScreenCover(isPresented: $openCamera) {

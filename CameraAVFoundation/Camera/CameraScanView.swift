@@ -74,6 +74,7 @@ extension CameraScanView {
       .overlay(alignment: .trailing) {
         Button {
           self.dismiss()
+          Feedback.trigger(.warning)
         } label: {
           Image(systemName: "xmark.app.fill").resizable().aspectRatio(contentMode: .fit)
             .frame(width: 41, height: 41).padding(.trailing, 16)
@@ -90,6 +91,7 @@ extension CameraScanView {
       Button {
         cameraScanVM.toggleFalsh()
         discreteTrigger1 += 1
+        Feedback.trigger(.success)
       } label: {
         Image(systemName: cameraScanVM.isFlashOn ? "flashlight.slash.circle.fill" : "flashlight.off.circle.fill")
           .resizable().aspectRatio(contentMode: .fit).frame(width: 41, height: 41)
@@ -101,15 +103,14 @@ extension CameraScanView {
       .padding(.bottom)
       .foregroundStyle(.white)
       
-      Button {
-        cameraScanVM.captureImage()
-      } label: {
-        Text("Capture").padding().frame(maxWidth: .infinity).frame(minHeight: 55)
-          .background(.white).foregroundStyle(Color(.darkGray)).font(.system(size: 15))
-          .cornerRadius(20)
-      }
-      .disabled(cameraScanVM.showLoadingToast)
-      .padding(.horizontal, 32)
+      CtaButton(
+        text: "Capture",
+        systemImage: "camera.shutter.button",
+        disabled: cameraScanVM.showLoadingToast,
+        fontSize: 16,
+        feedbackType: .success,
+        action: { cameraScanVM.captureImage() })
+      
       Spacer().frame(height: 80)
     }
     .overlay {

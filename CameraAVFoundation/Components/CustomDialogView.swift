@@ -59,6 +59,7 @@ struct CustomDialogView: View {
           
           Button {
             mainButtonAction()
+            Feedback.trigger(.success)
           } label: {
             Text(mainButtonText).font(.system(size: mainButtonTextFontSize)).fontWeight(.regular).foregroundStyle(mainButtonTextColor)
               .multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
