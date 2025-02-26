@@ -10,6 +10,8 @@ import SwiftUI
 struct ContentView: View {
   @State private var openCamera: Bool = false
   @State private var capturedImage: UIImage?
+  @State private var openQRScanner: Bool = false
+  @State private var scannedText: String = ""
   
   var body: some View {
     VStack {
@@ -26,10 +28,21 @@ struct ContentView: View {
       CtaButton(text: "Open Camera", systemImage: "camera.circle") {
         openCamera.toggle()
       }
+      
+      CtaButton(text: "Open QR Scanner", systemImage: "qrcode") {
+        openQRScanner.toggle()
+      }
+      
+      if !scannedText.isEmpty {
+        Text(scannedText).font(.headline).bold().font(.system(size: 16))
+      }
     }
     .padding()
     .fullScreenCover(isPresented: $openCamera) {
       CameraScanView(image: $capturedImage)
+    }
+    .fullScreenCover(isPresented: $openQRScanner) {
+      QRScanView(scanResult: $scannedText)
     }
   }
 }
