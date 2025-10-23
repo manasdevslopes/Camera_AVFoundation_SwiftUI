@@ -15,7 +15,7 @@ class CameraScanViewModel: NSObject, ObservableObject {
   @Published var isCameraRunning: Bool = false
   @Published var onProcessedImage: Data?
   
-  var captureSession = AVCaptureSession()
+  private(set) var captureSession = AVCaptureSession()
   private var photoOutput = AVCapturePhotoOutput()
   
   override init() {
@@ -23,7 +23,7 @@ class CameraScanViewModel: NSObject, ObservableObject {
     startCameraSession()
   }
   
-  func startCameraSession() {
+  private func startCameraSession() {
     guard let captureDevice = AVCaptureDevice.default(for: .video) else { return }
     do {
       let input = try AVCaptureDeviceInput(device: captureDevice)
@@ -34,6 +34,7 @@ class CameraScanViewModel: NSObject, ObservableObject {
     }
   }
   
+  @MainActor
   func requestCameraPermission() {
     let status = AVCaptureDevice.authorizationStatus(for: .video)
     switch status {
@@ -42,20 +43,15 @@ class CameraScanViewModel: NSObject, ObservableObject {
         isCameraRunning = false
       case .notDetermined:
         AVCaptureDevice.requestAccess(for: .video) { granted in
-          if !granted {
-            DispatchQueue.main.async {
-              self.showCameraPermissionAlert = true
-              self.isCameraRunning = false
-            }
-          } else if granted {
-            self.isCameraRunning = true
-            self.showCameraPermissionAlert = false
+          Task {@MainActor in
+            self.showCameraPermissionAlert = !granted
+            self.isCameraRunning = granted
           }
         }
       case .authorized:
         isCameraRunning = true
         showCameraPermissionAlert = false
-      default: break
+      @unknown default: break
     }
   }
 }
@@ -69,7 +65,9 @@ extension CameraScanViewModel {
   }
   
   func stopCamera() {
+    guard captureSession.isRunning else { return }
     captureSession.stopRunning()
+    isCameraRunning = false
   }
 }
 
@@ -106,14 +104,14 @@ extension CameraScanViewModel {
       return
     }
     
-    let discovery = AVCaptureDevice.DiscoverySession.init(deviceTypes: [.builtInWideAngleCamera], mediaType: AVMediaType.video, position: .back)
+    let discovery = AVCaptureDevice.DiscoverySession(deviceTypes: [.builtInWideAngleCamera], mediaType: .video, position: .back)
     guard !discovery.devices.isEmpty else { return }
     
     let photoSettings = AVCapturePhotoSettings()
     if let photoPreviewType = photoSettings.availablePreviewPhotoPixelFormatTypes.first {
       photoSettings.previewPhotoFormat = [kCVPixelBufferPixelFormatTypeKey as String: photoPreviewType]
-      photoOutput.capturePhoto(with: photoSettings, delegate: self)
     }
+    photoOutput.capturePhoto(with: photoSettings, delegate: self)
   }
 }
 
@@ -129,31 +127,29 @@ extension CameraScanViewModel {
   }
   
   private func cropImage(data: Data) -> Data? {
-    guard let cgImage = UIImage(data: data)?.cgImage else { return nil }
+    guard let originalImage = UIImage(data: data), let cgImage = originalImage.cgImage else { return nil }
     
     // Get the screen and camera dimensions
-    let screenWidth = UIScreen.main.bounds.width
-    let screenHeight = UIScreen.main.bounds.height
-    let imageWidth = CGFloat(cgImage.width)
-    let imageHeight = CGFloat(cgImage.height)
+    let screenSize = UIScreen.main.bounds.size
+    let imageSize = CGSize(width: cgImage.width, height: cgImage.height)
     
     // Center the scale ratios between screen and image dimensions
-    let widthScale = imageWidth / screenWidth
-    let heightScale = imageHeight / screenHeight
+    let widthScale = imageSize.width / screenSize.width
+    let heightScale = imageSize.height / screenSize.height
     
     // Calculate the crop dimensions based on the scaled width and height
-    let cropWidth = (screenWidth - 32) * widthScale
+    let cropWidth = (screenSize.width - 32) * widthScale
     let cropHeight = 250 * heightScale
     
     // Center the crop rectangle on the captured image
-    let originX = (imageWidth - cropWidth) / 2
-    let originY = (imageHeight - cropHeight) / 2
+    let originX = (imageSize.width - cropWidth) / 2
+    let originY = (imageSize.height - cropHeight) / 2
     
     let cropRect = CGRect(x: originX, y: originY, width: cropWidth, height: cropHeight)
     
     // Performing cropping
-    let croppedImage = cgImage.cropping(to: cropRect)
-    return UIImage(cgImage: croppedImage!, scale: 1.0, orientation: .right).jpegData(compressionQuality: 1.0)
+    guard let croppedCGImage = cgImage.cropping(to: cropRect) else { return nil }
+    return UIImage(cgImage: croppedCGImage, scale: originalImage.scale, orientation: .right).jpegData(compressionQuality: 1.0)
   }
 }
 

@@ -19,7 +19,7 @@ class QRScanViewModel: NSObject, ObservableObject {
   @Published var qrCodeFrame: CGRect = .zero
   @Published var scanResult: String?
   
-  private var captureSession: AVCaptureSession?
+  private(set) var captureSession = AVCaptureSession()
   var previewLayer: AVCaptureVideoPreviewLayer?
   private var captureMetaDataOutput = AVCaptureMetadataOutput()
   
@@ -33,7 +33,6 @@ class QRScanViewModel: NSObject, ObservableObject {
     
     do {
       let input = try AVCaptureDeviceInput(device: captureDevice)
-      let captureSession = AVCaptureSession()
       captureSession.addInput(input)
       
       let metadataOutput = AVCaptureMetadataOutput()
@@ -47,7 +46,7 @@ class QRScanViewModel: NSObject, ObservableObject {
       
       // You can use the preview layer's frame directly in the SwiftUI CameraPreviewView
       DispatchQueue.global(qos: .background).async {
-        captureSession.startRunning()
+        self.captureSession.startRunning()
       }
     } catch {
       debugPrint("Camera setup error: \(error.localizedDescription)")
@@ -55,13 +54,14 @@ class QRScanViewModel: NSObject, ObservableObject {
   }
   
   func stopScanning() {
-    captureSession?.stopRunning() // Stop the camera session when not needed
+    captureSession.stopRunning() // Stop the camera session when not needed
     previewLayer?.removeFromSuperlayer() // Remove the preview layer
   }
 }
 
 // MARK: - Request Camera Permission
 extension QRScanViewModel {
+  @MainActor
   func requestCameraPermission() {
 //    AVCaptureDevice.requestAccess(for: .video) { granted in
 //      DispatchQueue.main.async {
@@ -76,9 +76,7 @@ extension QRScanViewModel {
       case .notDetermined:
         AVCaptureDevice.requestAccess(for: .video) { granted in
           if !granted {
-            DispatchQueue.main.async {
-              self.showCameraPermissionAlert = true
-            }
+            self.showCameraPermissionAlert = true
           } else if granted {
             self.showCameraPermissionAlert = false
           }
